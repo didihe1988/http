@@ -1,4 +1,4 @@
-// Package gorilla/http is a high level HTTP client.
+// Package didihe1988/http is a high level HTTP client.
 //
 // This package provides high level convience methods for common http operations.
 // Additionally a high level HTTP client implementation.
@@ -6,9 +6,9 @@
 // These high level functions are expected to change. Your feedback on their form
 // and utility is warmly requested.
 //
-// Please raise issues at https://github.com/gorilla/http/issues.
+// Please raise issues at https://github.com/didihe1988/http/issues.
 //
-// For lower level http implementations, see gorilla/http/client.
+// For lower level http implementations, see didihe1988/http/client.
 package http
 
 import (

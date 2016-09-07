@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/http/client"
+	"github.com/didihe1988/http/client"
 )
 
 // Dialer can dial a remote HTTP server.
@@ -42,7 +42,7 @@ func (d *dialer) Dial(network, addr string) (Conn, error) {
 	}, err
 }
 
-// Conn represnts a connection which can be used to communicate
+// Conn represents a connection which can be used to communicate
 // with a remote HTTP server.
 type Conn interface {
 	client.Client

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/gorilla/http/client"
+	"github.com/didihe1988/http/client"
 )
 
 var toHeadersTests = []struct {
