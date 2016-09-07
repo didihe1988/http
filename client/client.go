@@ -1,4 +1,4 @@
-// Package gorilla/http/client contains the lower level HTTP client implementation.
+// Package didihe1988/http/client contains the lower level HTTP client implementation.
 //
 // Package client is divided into two layers. The upper layer is the client.Client layer
 // which handles the vaguaries of http implementations. The lower layer, two types, reader
@@ -6,7 +6,7 @@
 //
 // The interface presented by client.Client is very powerful. It is not expected that normal
 // consumers of HTTP services will need to operate at this level and should instead user the
-// higher level interfaces in the gorilla/http package.
+// higher level interfaces in the didihe1988/http package.
 package client
 
 import (
@@ -74,6 +74,9 @@ const readerBuffer = 4096
 type Client interface {
 	WriteRequest(*Request) error
 	ReadResponse() (*Response, error)
+	StartRequest(req *Request) error
+	WriteBodyDirectly(buf []byte) error
+	StopRequest()
 }
 
 // NewClient returns a Client implementation which uses rw to communicate.
@@ -125,6 +128,23 @@ func (c *client) WriteRequest(req *Request) error {
 		return err
 	}
 	return c.WriteBody(req.Body)
+}
+
+// Request.Headers should contain Content-Length.
+func (c *client) StartRequest(req *Request) error {
+	if err := c.WriteRequestLine(req.Method, req.Path, req.Query, req.Version.String()); err != nil {
+		return err
+	}
+	for _, h := range req.Headers {
+		if err := c.WriteHeader(h.Key, h.Value); err != nil {
+			return err
+		}
+	}
+
+	if err := c.StartBody(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ReadResponse unmarshalls a HTTP response.

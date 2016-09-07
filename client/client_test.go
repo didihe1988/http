@@ -137,16 +137,79 @@ var sendRequestTests = []struct {
 	},
 }
 
-func TestClientSendRequest(t *testing.T) {
-	for _, tt := range sendRequestTests {
+var sendRequestByPhasesTests = []struct {
+	Request
+	bodyChunks [][]byte
+	expected string
+}{
+	{
+		Request{
+			Method:  "PUT",
+			Path:    "/foo",
+			Version: HTTP_1_1,
+			Headers: []Header{
+				Header{"Content-Length", "11"},
+			},
+			Body:    nil,
+		},
+		[][]byte{[]byte("hello"),[]byte(" "),[]byte("world")},
+		"PUT /foo HTTP/1.1\r\nContent-Length: 11\r\n\r\nhello world",
+	},
+	{
+		Request{
+			Method:  "PUT",
+			Path:    "/foo",
+			Version: HTTP_1_1,
+			Headers: []Header{
+				Header{"Content-Length", "12"},
+			},
+			Body:    nil,
+		},
+		[][]byte{[]byte("hello"),[]byte(" "),[]byte("world!")},
+		"PUT /foo HTTP/1.1\r\nContent-Length: 12\r\n\r\nhello world!",
+	},
+	{
+		Request{
+			Method:  "PUT",
+			Path:    "/foo",
+			Version: HTTP_1_1,
+			Headers: []Header{
+				Header{"Content-Length", "12"},
+			},
+			Body:    nil,
+		},
+		[][]byte{[]byte("invalid"),[]byte(" "),[]byte("content-length")},
+		"PUT /foo HTTP/1.1\r\nContent-Length: 22\r\n\r\ninvalid content-length",
+	},
+}
+func TestClientSendRequestByPhases(t *testing.T) {
+	for _, test := range sendRequestByPhasesTests[:2] {
 		var b bytes.Buffer
 		client := NewClient(&b)
-		if err := client.WriteRequest(&tt.Request); err != nil {
-			t.Fatalf("client.SendRequest(): %v", err)
+		client.StartRequest(&test.Request)
+		for _, bodyChunk := range test.bodyChunks{
+			if err := client.WriteBodyDirectly(bodyChunk); err != nil {
+				t.Fatalf("client.WriteBodyDirectly(): %v", err)
+			}
 		}
-		if actual := b.String(); actual != tt.expected {
-			t.Errorf("client.SendRequest(): expected %q, got %q", tt.expected, actual)
+		client.StopRequest()
+		if actual := b.String(); actual != test.expected {
+			t.Errorf("client.SendRequest(): expected %q, got %q", test.expected, actual)
 		}
+	}
+
+	invalidTest := sendRequestByPhasesTests[len(sendRequestByPhasesTests)-1]
+	var b bytes.Buffer
+	client := NewClient(&b)
+	client.StartRequest(&invalidTest.Request)
+	for _, bodyChunk := range invalidTest.bodyChunks{
+		if err := client.WriteBodyDirectly(bodyChunk); err != nil {
+			t.Fatalf("client.WriteBodyDirectly(): %v", err)
+		}
+	}
+	client.StopRequest()
+	if actual := b.String(); actual == invalidTest.expected {
+		t.Errorf("client.SendRequest(): expected %q, got %q", invalidTest.expected, actual)
 	}
 }
 

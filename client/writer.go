@@ -91,6 +91,19 @@ func (w *writer) WriteBody(r io.Reader) error {
 	return err
 }
 
+func (w *writer) WriteBodyDirectly(buf []byte) error {
+	if w.phase != body {
+		return &phaseError{body, w.phase}
+	}
+
+	_,err := w.Write(buf)
+	return err
+}
+
+func (w* writer) StopRequest(){
+	w.phase = requestline
+}
+
 // WriteChunked writes the contents of r in chunked format to the wire.
 func (w *writer) WriteChunked(r io.Reader) error {
 	if w.phase != body {
