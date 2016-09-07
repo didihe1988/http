@@ -9,15 +9,36 @@ import (
 	"strings"
 
 	"github.com/didihe1988/http/client"
+	"sync"
 )
+
+var clientPool sync.Pool
+
+func init() {
+	clientPool = sync.Pool{
+		New: func() interface{} {
+			return &Client{
+				dialer: new(dialer),
+			}
+		},
+	}
+}
 
 // Client implements a high level HTTP client. Client methods can be called concurrently
 // to as many end points as required.
 type Client struct {
 	dialer Dialer
-	conn Conn
+	conn   Conn
 	// FollowRedirects instructs the client to follow 301/302 redirects when idempotent.
 	FollowRedirects bool
+}
+
+func NewClient() *Client {
+	return clientPool.Get().(*Client)
+}
+
+func FreeClient(client *Client) {
+	clientPool.Put(client)
 }
 
 // Do sends an HTTP request and returns an HTTP response. If the response body is non nil
@@ -74,7 +95,7 @@ func (c *Client) Do(method, url string, headers map[string][]string, body io.Rea
 	return rstatus, rheaders, rc, err
 }
 
-func (c *Client) StartRequest(method, url string, headers map[string][]string) error{
+func (c *Client) StartRequest(method, url string, headers map[string][]string) error {
 	u, err := stdurl.ParseRequestURI(url)
 	if err != nil {
 		return err
@@ -97,11 +118,11 @@ func (c *Client) StartRequest(method, url string, headers map[string][]string) e
 	return nil
 }
 
-func (c *Client) WriteRequestBody(buf []byte) error{
+func (c *Client) WriteRequestBody(buf []byte) error {
 	return c.conn.WriteBodyDirectly(buf)
 }
 
-func (c *Client) StopRequestAndReadResponse() (*client.Response,error){
+func (c *Client) StopRequestAndReadResponse() (*client.Response, error) {
 	c.conn.StopRequest()
 	return c.conn.ReadResponse()
 }

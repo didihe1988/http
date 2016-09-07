@@ -245,7 +245,6 @@ func TestClientDo(t *testing.T) {
 }
 
 var clientDoByPhasesTests = []struct {
-	Client
 	// arguments
 	method     string
 	path       string
@@ -255,24 +254,22 @@ var clientDoByPhasesTests = []struct {
 	client.Status
 }{
 	{
-		Client: Client{dialer: new(dialer)},
 		method: "PUT",
 		path:   "/put",
 		headers: map[string][]string{
 			"Content-Length": []string{strconv.Itoa(len(putBody))},
 		},
-		bodyChunks:[]string{"hello"," ","world"},
-		Status: client.Status{201, "Created"},
+		bodyChunks: []string{"hello", " ", "world"},
+		Status:     client.Status{201, "Created"},
 	},
 	{
-		Client: Client{dialer: new(dialer)},
 		method: "PUT",
 		path:   "/put",
 		headers: map[string][]string{
 			"Content-Length": []string{strconv.Itoa(len(putBody))},
 		},
-		bodyChunks:[]string{"invalid","content"},
-		Status: client.Status{400, "Bad Request"},
+		bodyChunks: []string{"invalid", "content"},
+		Status:     client.Status{400, "Bad Request"},
 	},
 }
 
@@ -280,27 +277,29 @@ func TestClientDoByPhases(t *testing.T) {
 	s := newServer(t, stdmux())
 	defer s.Shutdown()
 	for _, tt := range clientDoByPhasesTests {
+		client := NewClient()
 		url := s.Root() + tt.path
-		err := tt.Client.StartRequest(tt.method,url, tt.headers)
-		if err != nil{
-			t.Errorf("Client.StartRequest(%v, %v, %v): occurs error %v.", tt.method,url, tt.headers, err)
+		err := client.StartRequest(tt.method, url, tt.headers)
+		if err != nil {
+			t.Errorf("Client.StartRequest(%v, %v, %v): occurs error %v.", tt.method, url, tt.headers, err)
 			t.FailNow()
 		}
-		for _,bodyChunk := range tt.bodyChunks{
-			err := tt.Client.WriteRequestBody([]byte(bodyChunk))
+		for _, bodyChunk := range tt.bodyChunks {
+			err := client.WriteRequestBody([]byte(bodyChunk))
 			if err != nil {
 				t.Errorf("Client.WriteRequestBody: occurs error %v.", err)
 				t.FailNow()
 			}
 		}
 
-		resp,err := tt.Client.StopRequestAndReadResponse()
+		resp, err := client.StopRequestAndReadResponse()
 		if err != nil {
 			t.Errorf("Client.StopRequestAndReadResponse: occurs error %v.", err)
 		}
-		if resp.Status != tt.Status{
+		if resp.Status != tt.Status {
 			t.Errorf("Client.StopRequestAndReadResponse: Status expected %v, got %v", tt.Status, resp.Status)
 		}
+		FreeClient(client)
 	}
 }
 
