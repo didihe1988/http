@@ -12,10 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/http/client"
+	"github.com/didihe1988/http/client"
+	"strconv"
 )
 
 const postBody = "banananana"
+const putBody = "hello world"
 
 var clientDoTests = []struct {
 	Client
@@ -193,6 +195,19 @@ func stdmux() *http.ServeMux {
 		}
 		w.Write([]byte(rq))
 	})
+	mux.HandleFunc("/put", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "Invalid method", 400)
+		}
+		var b bytes.Buffer
+		io.Copy(&b, r.Body)
+		if b.String() != putBody {
+			http.Error(w, "Invalid request body", 400)
+		} else {
+			w.WriteHeader(201)
+			fmt.Fprintln(w, "Created")
+		}
+	})
 	return mux
 }
 
@@ -225,6 +240,66 @@ func TestClientDo(t *testing.T) {
 		}
 		if actual, expected := readBodies(t, rbody, tt.rbody); actual != expected {
 			t.Errorf("Client.Do(%q, %q, %v, %v): body expected %q, got %q", tt.method, tt.path, tt.headers, tt.body, expected, actual)
+		}
+	}
+}
+
+var clientDoByPhasesTests = []struct {
+	Client
+	// arguments
+	method     string
+	path       string
+	headers    map[string][]string
+	bodyChunks []string
+	// return values
+	client.Status
+}{
+	{
+		Client: Client{dialer: new(dialer)},
+		method: "PUT",
+		path:   "/put",
+		headers: map[string][]string{
+			"Content-Length": []string{strconv.Itoa(len(putBody))},
+		},
+		bodyChunks:[]string{"hello"," ","world"},
+		Status: client.Status{201, "Created"},
+	},
+	{
+		Client: Client{dialer: new(dialer)},
+		method: "PUT",
+		path:   "/put",
+		headers: map[string][]string{
+			"Content-Length": []string{strconv.Itoa(len(putBody))},
+		},
+		bodyChunks:[]string{"invalid","content"},
+		Status: client.Status{400, "Bad Request"},
+	},
+}
+
+func TestClientDoByPhases(t *testing.T) {
+	s := newServer(t, stdmux())
+	defer s.Shutdown()
+	for _, tt := range clientDoByPhasesTests {
+		url := s.Root() + tt.path
+		err := tt.Client.StartRequest(tt.method,url, tt.headers)
+		if err != nil{
+			t.Errorf("Client.StartRequest(%v, %v, %v): occurs error %v.", tt.method,url, tt.headers, err)
+			t.FailNow()
+		}
+		for _,bodyChunk := range tt.bodyChunks{
+			err := tt.Client.WriteRequestBody([]byte(bodyChunk))
+			if err != nil {
+				t.Errorf("Client.WriteRequestBody: occurs error %v.", err)
+				t.FailNow()
+			}
+		}
+
+		resp,err := tt.Client.StopRequestAndReadResponse()
+		if err != nil {
+			t.Errorf("Client.StopRequestAndReadResponse: occurs error %v.", err)
+		}
+		if resp.Status != tt.Status{
+			t.Errorf("Client.StopRequestAndReadResponse: Status expected %v, got %v", tt.Status, resp.Status)
 		}
 	}
 }

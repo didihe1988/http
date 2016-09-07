@@ -8,14 +8,14 @@ import (
 	stdurl "net/url"
 	"strings"
 
-	"github.com/gorilla/http/client"
+	"github.com/didihe1988/http/client"
 )
 
 // Client implements a high level HTTP client. Client methods can be called concurrently
 // to as many end points as required.
 type Client struct {
 	dialer Dialer
-
+	conn Conn
 	// FollowRedirects instructs the client to follow 301/302 redirects when idempotent.
 	FollowRedirects bool
 }
@@ -72,6 +72,38 @@ func (c *Client) Do(method, url string, headers map[string][]string, body io.Rea
 		return c.Do(method, loc, headers, body)
 	}
 	return rstatus, rheaders, rc, err
+}
+
+func (c *Client) StartRequest(method, url string, headers map[string][]string) error{
+	u, err := stdurl.ParseRequestURI(url)
+	if err != nil {
+		return err
+	}
+	host := u.Host
+	headers["Host"] = []string{host}
+	path := u.Path
+	if path == "" {
+		path = "/"
+	}
+	conn, err := c.dialer.Dial("tcp", u.Host)
+	if err != nil {
+		return err
+	}
+	req := toRequest(method, path, nil, headers, nil)
+	if err := conn.StartRequest(req); err != nil {
+		return err
+	}
+	c.conn = conn
+	return nil
+}
+
+func (c *Client) WriteRequestBody(buf []byte) error{
+	return c.conn.WriteBodyDirectly(buf)
+}
+
+func (c *Client) StopRequestAndReadResponse() (*client.Response,error){
+	c.conn.StopRequest()
+	return c.conn.ReadResponse()
 }
 
 // StatusError reprents a client.Status as an error.
