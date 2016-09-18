@@ -95,7 +95,7 @@ func (c *Client) Do(method, url string, headers map[string][]string, body io.Rea
 	return rstatus, rheaders, rc, err
 }
 
-func (c *Client) StartRequest(method, url string, headers map[string][]string) error {
+func (c *Client) StartRequest(method, url, network, addr string, headers map[string][]string) error {
 	u, err := stdurl.ParseRequestURI(url)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func (c *Client) StartRequest(method, url string, headers map[string][]string) e
 	if path == "" {
 		path = "/"
 	}
-	conn, err := c.dialer.Dial("tcp", u.Host)
+	conn, err := c.dialer.Dial(network, addr)
 	if err != nil {
 		return err
 	}

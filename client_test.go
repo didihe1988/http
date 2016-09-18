@@ -279,7 +279,7 @@ func TestClientDoByPhases(t *testing.T) {
 	for _, tt := range clientDoByPhasesTests {
 		client := NewClient()
 		url := s.Root() + tt.path
-		err := client.StartRequest(tt.method, url, tt.headers)
+		err := client.StartRequest(tt.method, url, s.Listener.Addr().Network(), s.Listener.Addr().String(), tt.headers)
 		if err != nil {
 			t.Errorf("Client.StartRequest(%v, %v, %v): occurs error %v.", tt.method, url, tt.headers, err)
 			t.FailNow()
